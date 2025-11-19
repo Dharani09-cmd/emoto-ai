@@ -30,7 +30,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://api.openai.com/")
+            baseUrl("https://emoto-backend.onrender.com/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
