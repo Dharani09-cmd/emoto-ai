@@ -25,12 +25,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _moodList = MutableLiveData<List<Mood>>()
     val moodList: LiveData<List<Mood>> = _moodList
 
-    // Retrofit service using Render backend
+    // Retrofit service
     private val aiService: BackendService
 
     init {
         val retrofit = Retrofit.Builder()
-            .baseUrl("https://emoto-backend.onrender.com/")   // IMPORTANT
+            .baseUrl("https://emoto-backend.onrender.com/") // Render backend URL
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
@@ -45,12 +45,13 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val response = aiService.sendToAI(ChatRequest(message))
-                val reply = response.reply.trim()
+                // Correct function
+                val response = aiService.getResponse(UserMessageRequest(message))
+                val aiReply = response.reply
 
                 _chatMessages.postValue(
                     _chatMessages.value?.apply {
-                        add(ChatMessage(reply, false))
+                        add(ChatMessage(aiReply, false))
                     }
                 )
             } catch (e: Exception) {
@@ -74,19 +75,15 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
-// Retrofit interface for your Render backend
+// Retrofit interface
 interface BackendService {
     @Headers("Content-Type: application/json")
-    @POST("chat")   // Render endpoint
-    suspend fun sendToAI(@Body request: ChatRequest): ChatResponse
+    @POST("chat")
+    suspend fun getResponse(@Body request: UserMessageRequest): AIReplyResponse
 }
 
-// Request sent to your node backend
-data class ChatRequest(
-    val message: String
-)
+// Request
+data class UserMessageRequest(val message: String)
 
-// Response returned by your node backend
-data class ChatResponse(
-    val reply: String
-)
+// Response
+data class AIReplyResponse(val reply: String)
