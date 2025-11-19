@@ -20,21 +20,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _chatMessages = MutableLiveData<MutableList<ChatMessage>>(mutableListOf())
     val chatMessages: LiveData<MutableList<ChatMessage>> = _chatMessages
 
-    // Room DAO
+    // Room DB
     private val moodDao = MoodDatabase.getDatabase(application).moodDao()
     private val _moodList = MutableLiveData<List<Mood>>()
     val moodList: LiveData<List<Mood>> = _moodList
 
-    // Retrofit
-    private val aiService: OpenAIService
+    // Retrofit service using Render backend
+    private val aiService: BackendService
 
     init {
         val retrofit = Retrofit.Builder()
-            baseUrl("https://emoto-backend.onrender.com/")
+            .baseUrl("https://emoto-backend.onrender.com/")   // IMPORTANT
             .addConverterFactory(GsonConverterFactory.create())
             .build()
 
-        aiService = retrofit.create(OpenAIService::class.java)
+        aiService = retrofit.create(BackendService::class.java)
 
         loadMoods()
     }
@@ -45,18 +45,12 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                val response = aiService.getResponse(
-                    OpenAIRequest(
-                        model = "gpt-3.5-turbo-instruct",
-                        prompt = message,
-                        max_tokens = 100
-                    )
-                )
-                val aiReply = response.choices[0].text.trim()
+                val response = aiService.sendToAI(ChatRequest(message))
+                val reply = response.reply.trim()
 
                 _chatMessages.postValue(
                     _chatMessages.value?.apply {
-                        add(ChatMessage(aiReply, false))
+                        add(ChatMessage(reply, false))
                     }
                 )
             } catch (e: Exception) {
@@ -80,23 +74,19 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 }
 
-// Retrofit API Interface
-interface OpenAIService {
-
-    @Headers(
-        "Content-Type: application/json",
-        "Authorization: Bearer YOUR_OPENAI_KEY_HERE"
-    )
-    @POST("v1/completions")
-    suspend fun getResponse(@Body request: OpenAIRequest): OpenAIResponse
+// Retrofit interface for your Render backend
+interface BackendService {
+    @Headers("Content-Type: application/json")
+    @POST("chat")   // Render endpoint
+    suspend fun sendToAI(@Body request: ChatRequest): ChatResponse
 }
 
-// API Models
-data class OpenAIRequest(
-    val model: String,
-    val prompt: String,
-    val max_tokens: Int
+// Request sent to your node backend
+data class ChatRequest(
+    val message: String
 )
 
-data class OpenAIResponse(val choices: List<Choice>)
-data class Choice(val text: String)
+// Response returned by your node backend
+data class ChatResponse(
+    val reply: String
+)
